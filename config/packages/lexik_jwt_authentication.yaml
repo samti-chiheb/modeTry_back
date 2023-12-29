@@ -1,0 +1,7 @@
+lexik_jwt_authentication:
+    secret_key: '%env(resolve:JWT_SECRET)%'  # Utilisez le secret de l'environnement
+    public_key: null  # Peut être omis pour HS256
+    pass_phrase: null  # Peut être omis pour HS256
+    token_ttl: 2592000 #one month
+    encoder:
+        signature_algorithm: HS256  # Utilisez HS256
