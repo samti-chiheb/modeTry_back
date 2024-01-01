@@ -2,24 +2,27 @@
 
 namespace App\Entity;
 
-use App\Repository\UserLikesRepository;
+use App\Repository\CommentRepository;
 use Doctrine\ORM\Mapping as ORM;
 
-#[ORM\Entity(repositoryClass: UserLikesRepository::class)]
-class UserLikes
+#[ORM\Entity(repositoryClass: CommentRepository::class)]
+class Comment
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\ManyToOne]
-    #[ORM\JoinColumn(nullable: false)]
-    private ?Users $userId = null;
+    #[ORM\Column(length: 255)]
+    private ?string $content = null;
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false)]
-    private ?VirtualTryOns $virtualTryOnId = null;
+    private ?Users $user = null;
+
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(nullable: false)]
+    private ?Photo $photo = null;
 
     #[ORM\Column]
     private ?\DateTimeImmutable $createdAt = null;
@@ -29,26 +32,38 @@ class UserLikes
         return $this->id;
     }
 
-    public function getUserId(): ?Users
+    public function getContent(): ?string
     {
-        return $this->userId;
+        return $this->content;
     }
 
-    public function setUserId(?Users $userId): static
+    public function setContent(string $content): static
     {
-        $this->userId = $userId;
+        $this->content = $content;
 
         return $this;
     }
 
-    public function getVirtualTryOnId(): ?VirtualTryOns
+    public function getUser(): ?Users
     {
-        return $this->virtualTryOnId;
+        return $this->user;
     }
 
-    public function setVirtualTryOnId(?VirtualTryOns $virtualTryOnId): static
+    public function setUser(?Users $user): static
     {
-        $this->virtualTryOnId = $virtualTryOnId;
+        $this->user = $user;
+
+        return $this;
+    }
+
+    public function getPhoto(): ?Photo
+    {
+        return $this->photo;
+    }
+
+    public function setPhoto(?Photo $photo): static
+    {
+        $this->photo = $photo;
 
         return $this;
     }

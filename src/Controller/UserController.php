@@ -2,7 +2,14 @@
 
 namespace App\Controller;
 
-use App\Entity\Users;  // Assurez-vous que c'est la classe correcte
+// Entity
+use App\Entity\Users;
+use App\Entity\Photo;
+
+// Service
+use App\Service\JWTService;
+use App\Service\FileUploader;
+
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -15,40 +22,49 @@ use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 use Lexik\Bundle\JWTAuthenticationBundle\Exception\JWTDecodeFailureException;
 use Symfony\Component\Security\Core\User\UserProviderInterface;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\RequestStack;
+
 
 
 class UserController extends AbstractController
 {
-    #[Route('/registration', name: 'app_registration', methods: ['POST'])]
-    public function register(Request $request, UserPasswordHasherInterface $passwordHasher, EntityManagerInterface $entityManager, ValidatorInterface $validator): JsonResponse
+
+    private $jwtService;
+
+    public function __construct(JWTService $jwtService, FileUploader $fileUploader)
     {
-        // Simplement extraire le JWT de l'entête d'autorisation
-        $jwtString = str_replace('Bearer ', '', $request->headers->get('Authorization'));
-
-        // Utiliser une configuration non sécurisée - En production, utilisez la vérification de clé appropriée!
-        $config = \Lcobucci\JWT\Configuration::forUnsecuredSigner();
+        $this->jwtService = $jwtService;
+        $this->fileUploader = $fileUploader;
+    }
 
 
+    #[Route('/registration', name: 'app_registration', methods: ['POST'])]
+    public function register(
+        Request $request,
+        UserPasswordHasherInterface $passwordHasher,
+        EntityManagerInterface $entityManager,
+        ValidatorInterface $validator,
+        RequestStack $requestStack
+    ): JsonResponse {
 
-        // Extraire le token JWT
         try {
-            $token = $config->parser()->parse($jwtString);
-            $claims = $token->claims()->all(); // Récupérer toutes les revendications
-
-
-            $existingUser = $entityManager->getRepository(Users::class)->findOneByEmail($claims['email']);
+            $jwtData = $this->jwtService->getDataFromJWT($request);
+            $existingUser = $entityManager->getRepository(Users::class)->findOneByEmail($jwtData['email']);
 
             if ($existingUser) {
                 return $this->json(['error' => 'Un utilisateur avec cet e-mail existe déjà.'], JsonResponse::HTTP_BAD_REQUEST);
             }
 
+            $baseUrl = $requestStack->getCurrentRequest()->getSchemeAndHttpHost();
+            $defaultImagePath = $baseUrl . '/defaults/images/profileImage.jpg';
+
             $users = new Users();
-            $users->setUsername($claims['username'] ?? null);
-            $users->setEmail($claims['email'] ?? null);
-            $users->setPassword(isset($claims['password']) ? $passwordHasher->hashPassword($users, $claims['password']) : null);
-            $users->setProfilePicture($claims['profilePicture'] ?? 'default_image_path.jpg');
-            $users->setSize($claims['size'] ?? null);
-            $users->setHeight($claims['height'] ?? null);
+            $users->setUsername($jwtData['username'] ?? null);
+            $users->setEmail($jwtData['email'] ?? null);
+            $users->setPassword(isset($jwtData['password']) ? $passwordHasher->hashPassword($users, $jwtData['password']) : null);
+            $users->setProfilePicture($defaultImagePath);
+            $users->setSize($jwtData['size'] ?? null);
+            $users->setHeight($jwtData['height'] ?? null);
             $users->setCreatedAt(new \DateTimeImmutable());
             $users->setUpdatedAt(new \DateTimeImmutable());
 
@@ -72,16 +88,6 @@ class UserController extends AbstractController
                 'message' => 'Une erreur est survenue lors de la décodage du token.',
                 'error' => $e->getMessage(),
             ], JsonResponse::HTTP_BAD_REQUEST);
-        } catch (UniqueConstraintViolationException $e) {
-            return $this->json([
-                'message' => 'Une erreur est survenue lors de l\'inscription.',
-                'error' => 'L\'email fourni est déjà utilisé par un autre compte.',
-            ], JsonResponse::HTTP_BAD_REQUEST);
-        } catch (\Exception $e) {
-            return $this->json([
-                'message' => 'Une erreur est survenue lors de l\'inscription.',
-                'error' => 'Une erreur de serveur est survenue.',
-            ], JsonResponse::HTTP_INTERNAL_SERVER_ERROR);
         }
 
         return $this->json([
@@ -91,12 +97,16 @@ class UserController extends AbstractController
     }
 
     #[Route('/login', name: 'app_login', methods: ['POST'])]
-    public function login(Request $request, UserPasswordHasherInterface $passwordEncoder, JWTTokenManagerInterface $JWTManager, EntityManagerInterface $entityManager): JsonResponse
-    {
-        $data = json_decode($request->getContent(), true);
+    public function login(
+        Request $request,
+        UserPasswordHasherInterface $passwordEncoder,
+        JWTTokenManagerInterface $JWTManager,
+        EntityManagerInterface $entityManager
+    ): JsonResponse {
+        $jwtData = $this->jwtService->getDataFromJWT($request);
 
-        $email = $data['email'] ?? '';
-        $password = $data['password'] ?? '';
+        $email = $jwtData['email'] ?? '';
+        $password = $jwtData['password'] ?? ''; // Assurez-vous que cela est sécurisé et faisable
 
         $user = $entityManager->getRepository(Users::class)->findOneByEmail($email);
 
@@ -104,9 +114,217 @@ class UserController extends AbstractController
             return $this->json(['error' => "L'e-mail ou le mot de passe est erroné"], Response::HTTP_UNAUTHORIZED);
         }
 
-        // Ici, utilisez les données que vous voulez inclure dans le token
-        $token = $JWTManager->create($user); // créez le token normal
+        $token = $JWTManager->create($user); // créez le token de connection
 
         return $this->json(['token' => $token]);
+    }
+
+    #[Route('/user/update', name: 'update_user', methods: ['PATCH'])]
+    public function updateUser(
+        Request $request,
+        EntityManagerInterface $entityManager,
+        UserPasswordHasherInterface $passwordEncoder
+    ): Response {
+
+        $jwtData = $this->jwtService->getDataFromJWT($request);
+
+        if (!isset($jwtData['id'])) {
+            return $this->json(['error' => 'ID utilisateur non fourni.'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $user = $entityManager->getRepository(Users::class)->find($jwtData['id']);
+        if (!$user) {
+            return $this->json(['error' => "Utilisateur non trouvé."], Response::HTTP_NOT_FOUND);
+        }
+
+
+        // Mettre à jour les champs si présents dans le JWT
+
+        // Initialiser une liste pour suivre les champs mis à jour
+        $updatedFields = [];
+
+        // Mise à jour du mot de passe, si fourni
+        if (isset($jwtData['password'])) {
+            $newEncodedPassword = $passwordEncoder->hashPassword($user, $jwtData['password']);
+            $user->setPassword($newEncodedPassword);
+            $updatedFields[] = 'mot de passe';
+        }
+
+        // Mise à jour de l'email, après vérification de sa non-existence chez un autre utilisateur
+        if (isset($jwtData['email'])) {
+            $existingUser = $entityManager->getRepository(Users::class)->findOneByEmail($jwtData['email']);
+
+            if ($existingUser && $existingUser->getId() !== $user->getId()) {
+                return $this->json(['error' => 'Cet email est déjà utilisé par un autre compte.'], Response::HTTP_BAD_REQUEST);
+            }
+
+            $user->setEmail($jwtData['email']);
+            $updatedFields[] = 'email';
+        }
+
+        // Si un username est fourni, mettez à jour le username
+        if (isset($jwtData['username'])) {
+            $user->setUsername($jwtData['username']);
+            $updatedFields[] = 'username';
+        }
+
+        // Si une taille (size) est fournie, mettez à jour la taille
+        if (isset($jwtData['size'])) {
+            $user->setSize($jwtData['size']);
+            $updatedFields[] = 'taille';
+        }
+
+        // Si une hauteur (height) est fournie, mettez à jour la hauteur
+        if (isset($jwtData['height'])) {
+            $user->setHeight($jwtData['height']);
+            $updatedFields[] = 'hauteur';
+        }
+
+        // Si une photo de profil est fournie, mettez à jour la photo de profil
+        if (isset($jwtData['profilePicture'])) {
+            $user->setProfilePicture($jwtData['profilePicture']);
+            $updatedFields[] = 'photo de profile';
+        }
+
+        // Persister les changements
+        $entityManager->persist($user);
+        $entityManager->flush();
+
+        return $this->json([
+            'message' => 'Le profil a été mis à jour avec succès!',
+            'updatedFields' => $updatedFields
+        ], Response::HTTP_OK);
+    }
+
+
+    #[Route('/user/upload-picture', name: 'upload_profile_picture', methods: ['POST'])]
+    public function uploadProfilePicture(Request $request, EntityManagerInterface $entityManager): JsonResponse
+    {
+        $jwtData = $this->jwtService->getDataFromJWT($request);
+
+        // Vérification de l'existence d'une erreur dans les données JWT
+        if (isset($jwtData['error'])) {
+            return $this->json(['error' => $jwtData['error']], Response::HTTP_BAD_REQUEST);
+        }
+
+        // Vérification des informations nécessaires dans les données JWT
+        if (!isset($jwtData['id'], $jwtData['photoType'], $jwtData['visibility'])) {
+            return $this->json(['error' => 'Données manquantes pour l\'identification ou les paramètres de la photo.'], Response::HTTP_BAD_REQUEST);
+        }
+
+        // Validation de l'utilisateur
+        $user = $entityManager->getRepository(Users::class)->find($jwtData['id']);
+        if (!$user) {
+            return $this->json(['error' => 'Utilisateur non trouvé.'], Response::HTTP_NOT_FOUND);
+        }
+
+        $file = $request->files->get('profilePicture');
+
+        if (!$file) {
+            return $this->json(['error' => 'Aucun fichier fourni.'], Response::HTTP_BAD_REQUEST);
+        }
+
+        try {
+            // Utiliser le service FileUploader pour stocker la photo et récupérer le chemin
+            $filePath = $this->fileUploader->upload($file);
+
+            // Extraction du nom du fichier à partir du chemin complet
+            $pathParts = pathinfo($filePath);
+            $photoName = $pathParts['basename']; // 'basename' obtient le nom de fichier final avec l'extension
+
+            // Créer et configurer la nouvelle entité Photo
+            $photo = new Photo();
+            $photo->setUser($user)
+                ->setName($photoName)
+                ->setPath($filePath)
+                ->setType($jwtData['photoType'])
+                ->setVisibility($jwtData['visibility']);
+
+            // Mise à jour du profilePicture de l'utilisateur
+            $user->setProfilePicture($filePath);
+
+            // Persister la nouvelle photo dans la base de données
+            $entityManager->persist($photo);
+            $entityManager->persist($user);
+            $entityManager->flush();
+
+            return $this->json([
+                'message' => 'La photo a été téléchargée et enregistrée avec succès!',
+                'filePath' => $filePath,
+                'type' => $jwtData['photoType'],
+                'visibility' => $jwtData['visibility']
+            ]);
+        } catch (\Exception $e) {
+            // Gérer l'exception si quelque chose se passe mal pendant l'upload
+            return $this->json(['error' => $e->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+     * Required userId and array of photoIds
+     *
+     * @param Request $request
+     * @param EntityManagerInterface $entityManager
+     * @param RequestStack $requestStack
+     * @return JsonResponse
+     */
+    #[Route('/user/delete-pictures', name: 'delete_pictures', methods: ['POST'])]
+    public function deletePictures(Request $request, EntityManagerInterface $entityManager, RequestStack $requestStack): JsonResponse
+    {
+        $jwtData = $this->jwtService->getDataFromJWT($request);
+
+        if (isset($jwtData['error'])) {
+            return $this->json(['error' => $jwtData['error']], Response::HTTP_BAD_REQUEST);
+        }
+
+        // Assurez-vous que 'photoIds' est un tableau d'identifiants
+        if (!isset($jwtData['userId'], $jwtData['photoIds']) || !is_array($jwtData['photoIds'])) {
+            return $this->json(['error' => 'Informations utilisateur ou photos manquantes.'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $user = $entityManager->getRepository(Users::class)->find($jwtData['userId']);
+
+        if (!$user) {
+            return $this->json(['error' => 'Utilisateur non trouvé.'], Response::HTTP_NOT_FOUND);
+        }
+
+        foreach ($jwtData['photoIds'] as $photoId) {
+            $photo = $entityManager->getRepository(Photo::class)->find($photoId);
+
+            if (!$photo) {
+                continue; // Si la photo n'existe pas, continuez avec la suivante
+            }
+
+            if ($photo->getUser()->getId() !== $user->getId()) {
+                continue; // Si la photo n'appartient pas à l'utilisateur, continuez avec la suivante
+            }
+
+            try {
+                $urlPath = $photo->getPath();
+                $relativePath = parse_url($urlPath, PHP_URL_PATH);
+
+                $projectDir = $this->getParameter('kernel.project_dir');
+                $filePath = $projectDir . '/public' . $relativePath;
+
+                if (file_exists($filePath)) {
+                    unlink($filePath);
+                }
+
+                if ($photo->getType() === Photo::TYPE_PROFILE) {
+                    $baseUrl = $requestStack->getCurrentRequest()->getSchemeAndHttpHost();
+                    $defaultProfilePicPath = $baseUrl . '/defaults/images/profileImage.jpg';
+                    $user->setProfilePicture($defaultProfilePicPath);
+                    $entityManager->persist($user);
+                }
+
+                $entityManager->remove($photo);
+            } catch (\Exception $e) {
+                continue; // Si une erreur se produit lors de la suppression, continuez avec la photo suivante
+            }
+        }
+
+        $entityManager->flush(); // Effectuez un seul flush après toutes les suppressions
+
+        return $this->json(['message' => 'Les photos ont été supprimées avec succès.']);
     }
 }
