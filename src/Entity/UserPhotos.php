@@ -15,7 +15,7 @@ class UserPhotos
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false)]
-    private ?Users $userId = null;
+    private ?Users $user = null;
 
     #[ORM\Column(length: 255)]
     private ?string $imagePath = null;
@@ -28,14 +28,14 @@ class UserPhotos
         return $this->id;
     }
 
-    public function getUserId(): ?Users
+    public function getUser(): ?Users
     {
-        return $this->userId;
+        return $this->user;
     }
 
-    public function setUserId(?Users $userId): static
+    public function setUser(?Users $user): static
     {
-        $this->userId = $userId;
+        $this->user = $user;
 
         return $this;
     }

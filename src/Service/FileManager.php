@@ -7,7 +7,7 @@ use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
 
-class FileUploader
+class FileManager
 {
   private $targetDirectory;
   private $requestStack;
@@ -44,12 +44,16 @@ class FileUploader
     }
   }
 
-  public function delete(string $filePath): bool
+  public function delete(string $urlPath): bool
   {
-    $fullPath = $this->targetDirectory . '/' . $filePath;
+    $relativePath = parse_url($urlPath, PHP_URL_PATH);
 
-    if (file_exists($fullPath)) {
-      return unlink($fullPath);
+    $filename = basename($relativePath);
+
+    $filePath = $this->targetDirectory . '/' . $filename;
+
+    if (file_exists($filePath)) {
+      return unlink($filePath);
     }
 
     return false;

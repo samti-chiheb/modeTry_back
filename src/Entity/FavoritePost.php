@@ -6,7 +6,7 @@ use App\Repository\FavoritePhotosRepository;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: FavoritePhotosRepository::class)]
-class FavoritePhotos
+class FavoritePost
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -15,37 +15,37 @@ class FavoritePhotos
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false)]
-    private ?Users $userId = null;
+    private ?Users $user = null;
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false)]
-    private ?UserPhotos $photoId = null;
+    private ?UserPhotos $photo = null;
 
     public function getId(): ?int
     {
         return $this->id;
     }
 
-    public function getUserId(): ?Users
+    public function getUser(): ?Users
     {
-        return $this->userId;
+        return $this->user;
     }
 
-    public function setUserId(?Users $userId): static
+    public function setUser(?Users $user): static
     {
-        $this->userId = $userId;
+        $this->user = $user;
 
         return $this;
     }
 
-    public function getPhotoId(): ?UserPhotos
+    public function getPhoto(): ?UserPhotos
     {
-        return $this->photoId;
+        return $this->photo;
     }
 
-    public function setPhotoId(?UserPhotos $photoId): static
+    public function setPhoto(?UserPhotos $photo): static
     {
-        $this->photoId = $photoId;
+        $this->photo = $photo;
 
         return $this;
     }

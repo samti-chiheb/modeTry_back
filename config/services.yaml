@@ -31,7 +31,7 @@ services:
         arguments:
             $secretKey: '%env(JWT_SECRET)%'
 
-    App\Service\FileUploader: 
+    App\Service\FileManager: 
         arguments:
             $params: '@parameter_bag'
             $requestStack: '@request_stack'

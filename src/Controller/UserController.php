@@ -8,7 +8,7 @@ use App\Entity\Photo;
 
 // Service
 use App\Service\JWTService;
-use App\Service\FileUploader;
+use App\Service\FileManager;
 
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
@@ -31,10 +31,10 @@ class UserController extends AbstractController
 
     private $jwtService;
 
-    public function __construct(JWTService $jwtService, FileUploader $fileUploader)
+    public function __construct(JWTService $jwtService, FileManager $fileManager)
     {
         $this->jwtService = $jwtService;
-        $this->fileUploader = $fileUploader;
+        $this->fileManager = $fileManager;
     }
 
 
@@ -49,6 +49,11 @@ class UserController extends AbstractController
 
         try {
             $jwtData = $this->jwtService->getDataFromJWT($request);
+
+            if (isset($jwtData->error)) {
+                return $this->json(['error' => 'clé jwt invalide'], JsonResponse::HTTP_BAD_REQUEST);
+            }
+
             $existingUser = $entityManager->getRepository(Users::class)->findOneByEmail($jwtData['email']);
 
             if ($existingUser) {
@@ -105,6 +110,9 @@ class UserController extends AbstractController
     ): JsonResponse {
         $jwtData = $this->jwtService->getDataFromJWT($request);
 
+        if (isset($jwtData->error)) {
+            return $this->json(['error' => 'clé jwt invalide'], JsonResponse::HTTP_BAD_REQUEST);
+        }
         $email = $jwtData['email'] ?? '';
         $password = $jwtData['password'] ?? ''; // Assurez-vous que cela est sécurisé et faisable
 
@@ -116,7 +124,17 @@ class UserController extends AbstractController
 
         $token = $JWTManager->create($user); // créez le token de connection
 
-        return $this->json(['token' => $token]);
+        return $this->json([
+            'token' => $token,
+            'user' => [
+                'id' => $user->getId(),
+                'username' => $user->getUsername(),
+                'email' => $user->getEmail(),
+                'profilePicture' => $user->getProfilePicture(),
+                'size' => $user->getSize(),
+                'height' => $user->getHeight(),
+            ],
+        ]);
     }
 
     #[Route('/user/update', name: 'update_user', methods: ['PATCH'])]
@@ -127,6 +145,9 @@ class UserController extends AbstractController
     ): Response {
 
         $jwtData = $this->jwtService->getDataFromJWT($request);
+        if (isset($jwtData->error)) {
+            return $this->json(['error' => 'clé jwt invalide'], JsonResponse::HTTP_BAD_REQUEST);
+        }
 
         if (!isset($jwtData['id'])) {
             return $this->json(['error' => 'ID utilisateur non fourni.'], Response::HTTP_BAD_REQUEST);
@@ -201,6 +222,9 @@ class UserController extends AbstractController
     public function uploadProfilePicture(Request $request, EntityManagerInterface $entityManager): JsonResponse
     {
         $jwtData = $this->jwtService->getDataFromJWT($request);
+        if (isset($jwtData->error)) {
+            return $this->json(['error' => 'clé jwt invalide'], JsonResponse::HTTP_BAD_REQUEST);
+        }
 
         // Vérification de l'existence d'une erreur dans les données JWT
         if (isset($jwtData['error'])) {
@@ -208,7 +232,7 @@ class UserController extends AbstractController
         }
 
         // Vérification des informations nécessaires dans les données JWT
-        if (!isset($jwtData['id'], $jwtData['photoType'], $jwtData['visibility'])) {
+        if (!isset($jwtData['id'])) {
             return $this->json(['error' => 'Données manquantes pour l\'identification ou les paramètres de la photo.'], Response::HTTP_BAD_REQUEST);
         }
 
@@ -225,20 +249,13 @@ class UserController extends AbstractController
         }
 
         try {
-            // Utiliser le service FileUploader pour stocker la photo et récupérer le chemin
-            $filePath = $this->fileUploader->upload($file);
-
-            // Extraction du nom du fichier à partir du chemin complet
-            $pathParts = pathinfo($filePath);
-            $photoName = $pathParts['basename']; // 'basename' obtient le nom de fichier final avec l'extension
+            // Utiliser le service FileManager pour stocker la photo et récupérer le chemin
+            $filePath = $this->fileManager->upload($file);
 
             // Créer et configurer la nouvelle entité Photo
             $photo = new Photo();
             $photo->setUser($user)
-                ->setName($photoName)
-                ->setPath($filePath)
-                ->setType($jwtData['photoType'])
-                ->setVisibility($jwtData['visibility']);
+                ->setPath($filePath);
 
             // Mise à jour du profilePicture de l'utilisateur
             $user->setProfilePicture($filePath);
@@ -251,8 +268,6 @@ class UserController extends AbstractController
             return $this->json([
                 'message' => 'La photo a été téléchargée et enregistrée avec succès!',
                 'filePath' => $filePath,
-                'type' => $jwtData['photoType'],
-                'visibility' => $jwtData['visibility']
             ]);
         } catch (\Exception $e) {
             // Gérer l'exception si quelque chose se passe mal pendant l'upload
@@ -272,7 +287,9 @@ class UserController extends AbstractController
     public function deletePictures(Request $request, EntityManagerInterface $entityManager, RequestStack $requestStack): JsonResponse
     {
         $jwtData = $this->jwtService->getDataFromJWT($request);
-
+        if (isset($jwtData->error)) {
+            return $this->json(['error' => 'clé jwt invalide'], JsonResponse::HTTP_BAD_REQUEST);
+        }
         if (isset($jwtData['error'])) {
             return $this->json(['error' => $jwtData['error']], Response::HTTP_BAD_REQUEST);
         }
@@ -327,4 +344,6 @@ class UserController extends AbstractController
 
         return $this->json(['message' => 'Les photos ont été supprimées avec succès.']);
     }
+
+    
 }

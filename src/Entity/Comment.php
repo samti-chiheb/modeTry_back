@@ -22,7 +22,7 @@ class Comment
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false)]
-    private ?Photo $photo = null;
+    private ?Post $post = null;
 
     #[ORM\Column]
     private ?\DateTimeImmutable $createdAt = null;
@@ -56,14 +56,14 @@ class Comment
         return $this;
     }
 
-    public function getPhoto(): ?Photo
+    public function getPost(): ?Post
     {
-        return $this->photo;
+        return $this->post;
     }
 
-    public function setPhoto(?Photo $photo): static
+    public function setPost(?Post $post): static
     {
-        $this->photo = $photo;
+        $this->post = $post;
 
         return $this;
     }

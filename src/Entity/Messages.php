@@ -16,11 +16,11 @@ class Messages
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false)]
-    private ?Users $senderUserId = null;
+    private ?Users $senderUser = null;
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false)]
-    private ?Users $receiverUserId = null;
+    private ?Users $receiverUser = null;
 
     #[ORM\Column(type: Types::TEXT)]
     private ?string $text = null;
@@ -33,26 +33,26 @@ class Messages
         return $this->id;
     }
 
-    public function getSenderUserId(): ?Users
+    public function getSenderUser(): ?Users
     {
-        return $this->senderUserId;
+        return $this->senderUser;
     }
 
-    public function setSenderUserId(?Users $senderUserId): static
+    public function setSenderUser(?Users $senderUser): static
     {
-        $this->senderUserId = $senderUserId;
+        $this->senderUser = $senderUser;
 
         return $this;
     }
 
-    public function getReceiverUserId(): ?Users
+    public function getReceiverUser(): ?Users
     {
-        return $this->receiverUserId;
+        return $this->receiverUser;
     }
 
-    public function setReceiverUserId(?Users $receiverUserId): static
+    public function setReceiverUser(?Users $receiverUser): static
     {
-        $this->receiverUserId = $receiverUserId;
+        $this->receiverUser = $receiverUser;
 
         return $this;
     }
