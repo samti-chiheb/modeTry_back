@@ -27,9 +27,6 @@ class Users implements UserInterface, PasswordAuthenticatedUserInterface
     private ?string $username = null;
 
     #[ORM\Column(length: 255)]
-    private ?string $profilePicture = null;
-
-    #[ORM\Column(length: 255)]
     private ?string $size = null;
 
     #[ORM\Column(length: 255)]
@@ -40,6 +37,10 @@ class Users implements UserInterface, PasswordAuthenticatedUserInterface
 
     #[ORM\Column]
     private ?\DateTimeImmutable $updatedAt = null;
+
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(nullable: true)]
+    private ?Photo $photo = null;
 
     public function getId(): ?int
     {
@@ -81,18 +82,6 @@ class Users implements UserInterface, PasswordAuthenticatedUserInterface
     public function setUsername(string $username): static
     {
         $this->username = $username;
-
-        return $this;
-    }
-
-    public function getProfilePicture(): ?string
-    {
-        return $this->profilePicture;
-    }
-
-    public function setProfilePicture(string $profilePicture): static
-    {
-        $this->profilePicture = $profilePicture;
 
         return $this;
     }
@@ -169,5 +158,17 @@ class Users implements UserInterface, PasswordAuthenticatedUserInterface
     {
         // Non nécessaire si vous utilisez bcrypt ou argon2i
         return null;
+    }
+
+    public function getPhoto(): ?Photo
+    {
+        return $this->photo;
+    }
+
+    public function setPhoto(?Photo $photo): static
+    {
+        $this->$photo = $photo;
+
+        return $this;
     }
 }

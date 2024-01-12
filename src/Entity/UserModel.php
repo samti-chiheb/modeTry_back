@@ -2,11 +2,11 @@
 
 namespace App\Entity;
 
-use App\Repository\FavoritePhotosRepository;
+use App\Repository\UserModelRepository;
 use Doctrine\ORM\Mapping as ORM;
 
-#[ORM\Entity(repositoryClass: FavoritePhotosRepository::class)]
-class FavoritePost
+#[ORM\Entity(repositoryClass: UserModelRepository::class)]
+class UserModel
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -19,7 +19,7 @@ class FavoritePost
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false)]
-    private ?UserPhotos $photo = null;
+    private ?Photo $photo = null;
 
     public function getId(): ?int
     {
@@ -38,12 +38,12 @@ class FavoritePost
         return $this;
     }
 
-    public function getPhoto(): ?UserPhotos
+    public function getPhoto(): ?Photo
     {
         return $this->photo;
     }
 
-    public function setPhoto(?UserPhotos $photo): static
+    public function setPhoto(?Photo $photo): static
     {
         $this->photo = $photo;
 

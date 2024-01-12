@@ -17,7 +17,7 @@ class JWTCreatedListener
     $payload['id'] = $user->getId();
     $payload['email'] = $user->getEmail();
     $payload['username'] = $user->getUsername();
-    $payload['profilePicture'] = $user->getProfilePicture();
+    $payload['photo'] = $user->getPhoto();
     $payload['size'] = $user->getSize();
     $payload['height'] = $user->getHeight();
     $payload['createdAt'] = $user->getCreatedAt()->format('Y-m-d H:i:s');

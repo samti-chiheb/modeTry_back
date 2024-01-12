@@ -2,27 +2,27 @@
 
 namespace App\Repository;
 
-use App\Entity\UserPhotos;
+use App\Entity\UserModel;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
- * @extends ServiceEntityRepository<UserPhotos>
+ * @extends ServiceEntityRepository<UserModel>
  *
- * @method UserPhotos|null find($id, $lockMode = null, $lockVersion = null)
- * @method UserPhotos|null findOneBy(array $criteria, array $orderBy = null)
- * @method UserPhotos[]    findAll()
- * @method UserPhotos[]    findBy(array $criteria, array $orderBy = null, $limit = null, $offset = null)
+ * @method UserModel|null find($id, $lockMode = null, $lockVersion = null)
+ * @method UserModel|null findOneBy(array $criteria, array $orderBy = null)
+ * @method UserModel[]    findAll()
+ * @method UserModel[]    findBy(array $criteria, array $orderBy = null, $limit = null, $offset = null)
  */
-class UserPhotosRepository extends ServiceEntityRepository
+class UserModelRepository extends ServiceEntityRepository
 {
     public function __construct(ManagerRegistry $registry)
     {
-        parent::__construct($registry, UserPhotos::class);
+        parent::__construct($registry, UserModel::class);
     }
 
 //    /**
-//     * @return UserPhotos[] Returns an array of UserPhotos objects
+//     * @return UserModel[] Returns an array of UserModel objects
 //     */
 //    public function findByExampleField($value): array
 //    {
@@ -36,7 +36,7 @@ class UserPhotosRepository extends ServiceEntityRepository
 //        ;
 //    }
 
-//    public function findOneBySomeField($value): ?UserPhotos
+//    public function findOneBySomeField($value): ?UserModel
 //    {
 //        return $this->createQueryBuilder('u')
 //            ->andWhere('u.exampleField = :val')
