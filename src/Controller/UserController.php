@@ -66,7 +66,18 @@ class UserController extends AbstractController
             $users->setPassword(isset($jwtData['password']) ? $passwordHasher->hashPassword($users, $jwtData['password']) : null);
             $users->setSize($jwtData['size'] ?? null);
             $users->setHeight($jwtData['height'] ?? null);
-            $users->setPhoto($jwtData['photo'] ?? null);
+            $photoId = $jwtData['photoId'] ?? null;
+
+            if ($photoId) {
+                $photo = $entityManager->getRepository(Photo::class)->find($photoId);
+
+                if ($photo) {
+                    $users->setPhoto($photo);
+                } else {
+                    return $this->json(['error' => 'Photo introuvable.'], JsonResponse::HTTP_BAD_REQUEST);
+                }
+            }
+
             $users->setCreatedAt(new \DateTimeImmutable());
             $users->setUpdatedAt(new \DateTimeImmutable());
 
@@ -120,6 +131,12 @@ class UserController extends AbstractController
 
         $token = $JWTManager->create($user); // créez le token de connection
 
+        $photoUrl = null;
+
+        if ($user->getPhoto()) {
+            $photoUrl = $user->getPhoto()->getPath();
+        }
+
         return $this->json([
             'token' => $token,
             'user' => [
@@ -128,7 +145,7 @@ class UserController extends AbstractController
                 'email' => $user->getEmail(),
                 'size' => $user->getSize(),
                 'height' => $user->getHeight(),
-                // 'photo' => $user->getPhoto(),
+                'profilePicture' => $photoUrl
             ],
         ]);
     }
@@ -198,9 +215,18 @@ class UserController extends AbstractController
         }
 
         // Si une photo de profil est fournie, mettez à jour la photo de profil
-        if (isset($jwtData['photo'])) {
-            $user->setPhoto($jwtData['photo']);
-            $updatedFields[] = 'photo de profile';
+        if (isset($jwtData['photoId'])) {
+            $photoId = $jwtData['photoId'] ?? null;
+            if ($photoId) {
+                $photo = $entityManager->getRepository(Photo::class)->find($photoId);
+
+                if ($photo) {
+                    $users->setPhoto($photo);
+                    $updatedFields[] = 'photo de profile';
+                } else {
+                    return $this->json(['error' => 'Photo introuvable.'], JsonResponse::HTTP_BAD_REQUEST);
+                }
+            }
         }
 
         // Persister les changements

@@ -2,14 +2,12 @@
 
 namespace App\Entity;
 
-use App\Repository\PhotoRepository;
+use App\Repository\SavedPostRepository;
 use Doctrine\ORM\Mapping as ORM;
-use Symfony\Component\Validator\Constraints as Assert;
 
-#[ORM\Entity(repositoryClass: PhotoRepository::class)]
-class Photo
+#[ORM\Entity(repositoryClass: SavedPostRepository::class)]
+class SavedPost
 {
-
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -17,22 +15,30 @@ class Photo
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false)]
+    private ?Post $post = null;
+
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(nullable: false)]
     private ?Users $user = null;
-
-    #[ORM\Column(length: 255)]
-    private ?string $path = null;
-
 
     #[ORM\Column]
     private ?\DateTimeImmutable $createdAt = null;
 
-
-
-    // Getters et setters
-
     public function getId(): ?int
     {
         return $this->id;
+    }
+
+    public function getPost(): ?Post
+    {
+        return $this->post;
+    }
+
+    public function setPost(?Post $post): static
+    {
+        $this->post = $post;
+
+        return $this;
     }
 
     public function getUser(): ?Users
@@ -40,20 +46,10 @@ class Photo
         return $this->user;
     }
 
-    public function setUser(?Users $user): self
+    public function setUser(?Users $user): static
     {
         $this->user = $user;
-        return $this;
-    }
 
-    public function getPath(): ?string
-    {
-        return $this->path;
-    }
-
-    public function setPath(string $path): self
-    {
-        $this->path = $path;
         return $this;
     }
 

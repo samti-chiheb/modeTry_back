@@ -5,8 +5,8 @@ namespace App\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\Routing\Annotation\Route;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\Routing\Annotation\Route;
 use App\Entity\Post;
 use App\Entity\Photo;
 use App\Entity\Users;
@@ -45,7 +45,6 @@ class PostController extends AbstractController
     public function createPost(Request $request, EntityManagerInterface $entityManager): JsonResponse
     {
         try {
-
             $user = $this->getUserFromJwt($request, $entityManager);
 
             $data = json_decode($request->getContent(), true);
@@ -96,7 +95,9 @@ class PostController extends AbstractController
                     'id' => $post->getId(),
                     'description' => $post->getDescription(),
                     'tags' => $post->getTags(),
-                    'username' => $post->getUser()->getUsername(),
+                    'creator' => $post->getUser()->getUsername(),
+                    'creatorId' => $post->getUser()->getId(),
+                    'creatorPhoto' => $post->getUser()->getPhoto()->getPath(),
                     'photoPath' => $post->getPhoto()->getPath(),
                     'visibility' => $post->getVisibility(),
                     'createdAt' => $post->getCreatedAt()->format('Y-m-d H:i:s'),
@@ -211,5 +212,4 @@ class PostController extends AbstractController
             return $this->json(['error' => $e->getMessage()], JsonResponse::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
-
 }

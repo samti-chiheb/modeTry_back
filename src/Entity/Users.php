@@ -167,8 +167,8 @@ class Users implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function setPhoto(?Photo $photo): static
     {
-        $this->$photo = $photo;
-
+        $this->photo = $photo;
         return $this;
     }
+
 }

@@ -14,10 +14,16 @@ class JWTCreatedListener
     // Ajouter des données personnalisées au payload du Token
     $payload = $event->getData();
 
+    $photoUrl = null;
+
+    if ($user->getPhoto()) {
+      $photoUrl = $user->getPhoto()->getPath();
+    }
+
     $payload['id'] = $user->getId();
     $payload['email'] = $user->getEmail();
     $payload['username'] = $user->getUsername();
-    $payload['photo'] = $user->getPhoto();
+    $payload['profilePicture'] = $photoUrl;
     $payload['size'] = $user->getSize();
     $payload['height'] = $user->getHeight();
     $payload['createdAt'] = $user->getCreatedAt()->format('Y-m-d H:i:s');
