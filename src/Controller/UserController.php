@@ -22,7 +22,6 @@ use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 use Lexik\Bundle\JWTAuthenticationBundle\Exception\JWTDecodeFailureException;
 use Symfony\Component\Security\Core\User\UserProviderInterface;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpFoundation\RequestStack;
 
 
 
@@ -37,14 +36,12 @@ class UserController extends AbstractController
         $this->fileManager = $fileManager;
     }
 
-
     #[Route('/registration', name: 'app_registration', methods: ['POST'])]
     public function register(
         Request $request,
         UserPasswordHasherInterface $passwordHasher,
         EntityManagerInterface $entityManager,
         ValidatorInterface $validator,
-        RequestStack $requestStack
     ): JsonResponse {
 
         try {
@@ -75,6 +72,15 @@ class UserController extends AbstractController
                     $users->setPhoto($photo);
                 } else {
                     return $this->json(['error' => 'Photo introuvable.'], JsonResponse::HTTP_BAD_REQUEST);
+                }
+            } else {
+                // If no photoId provided, set a default photo ID 30
+                $photo = $entityManager->getRepository(Photo::class)->find("30");
+
+                if ($photo) {
+                    $users->setPhoto($photo);
+                } else {
+                    return $this->json(['error' => "Photo [$photoId] introuvable."], JsonResponse::HTTP_BAD_REQUEST);
                 }
             }
 
@@ -240,132 +246,7 @@ class UserController extends AbstractController
     }
 
 
-    // #[Route('/user/upload-picture', name: 'upload_profile_picture', methods: ['POST'])]
-    // public function uploadProfilePicture(Request $request, EntityManagerInterface $entityManager): JsonResponse
-    // {
-    //     $jwtData = $this->jwtService->getDataFromJWT($request);
-    //     if (isset($jwtData->error)) {
-    //         return $this->json(['error' => 'clé jwt invalide'], JsonResponse::HTTP_BAD_REQUEST);
-    //     }
 
-    //     // Vérification de l'existence d'une erreur dans les données JWT
-    //     if (isset($jwtData['error'])) {
-    //         return $this->json(['error' => $jwtData['error']], Response::HTTP_BAD_REQUEST);
-    //     }
-
-    //     // Vérification des informations nécessaires dans les données JWT
-    //     if (!isset($jwtData['id'])) {
-    //         return $this->json(['error' => 'Données manquantes pour l\'identification ou les paramètres de la photo.'], Response::HTTP_BAD_REQUEST);
-    //     }
-
-    //     // Validation de l'utilisateur
-    //     $user = $entityManager->getRepository(Users::class)->find($jwtData['id']);
-    //     if (!$user) {
-    //         return $this->json(['error' => 'Utilisateur non trouvé.'], Response::HTTP_NOT_FOUND);
-    //     }
-
-    //     $file = $request->files->get('profilePicture');
-
-    //     if (!$file) {
-    //         return $this->json(['error' => 'Aucun fichier fourni.'], Response::HTTP_BAD_REQUEST);
-    //     }
-
-    //     try {
-    //         // Utiliser le service FileManager pour stocker la photo et récupérer le chemin
-    //         $filePath = $this->fileManager->upload($file);
-
-    //         // Créer et configurer la nouvelle entité Photo
-    //         $photo = new Photo();
-    //         $photo->setUser($user)
-    //             ->setPath($filePath);
-
-    //         // Mise à jour du profilePicture de l'utilisateur
-    //         $user->setProfilePicture($filePath);
-
-    //         // Persister la nouvelle photo dans la base de données
-    //         $entityManager->persist($photo);
-    //         $entityManager->persist($user);
-    //         $entityManager->flush();
-
-    //         return $this->json([
-    //             'message' => 'La photo a été téléchargée et enregistrée avec succès!',
-    //             'filePath' => $filePath,
-    //         ]);
-    //     } catch (\Exception $e) {
-    //         // Gérer l'exception si quelque chose se passe mal pendant l'upload
-    //         return $this->json(['error' => $e->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
-    //     }
-    // }
-
-    // /**
-    //  * Required userId and array of photoIds
-    //  *
-    //  * @param Request $request
-    //  * @param EntityManagerInterface $entityManager
-    //  * @param RequestStack $requestStack
-    //  * @return JsonResponse
-    //  */
-    // #[Route('/user/delete-pictures', name: 'delete_pictures', methods: ['POST'])]
-    // public function deletePictures(Request $request, EntityManagerInterface $entityManager, RequestStack $requestStack): JsonResponse
-    // {
-    //     $jwtData = $this->jwtService->getDataFromJWT($request);
-    //     if (isset($jwtData->error)) {
-    //         return $this->json(['error' => 'clé jwt invalide'], JsonResponse::HTTP_BAD_REQUEST);
-    //     }
-    //     if (isset($jwtData['error'])) {
-    //         return $this->json(['error' => $jwtData['error']], Response::HTTP_BAD_REQUEST);
-    //     }
-
-    //     // Assurez-vous que 'photoIds' est un tableau d'identifiants
-    //     if (!isset($jwtData['userId'], $jwtData['photoIds']) || !is_array($jwtData['photoIds'])) {
-    //         return $this->json(['error' => 'Informations utilisateur ou photos manquantes.'], Response::HTTP_BAD_REQUEST);
-    //     }
-
-    //     $user = $entityManager->getRepository(Users::class)->find($jwtData['userId']);
-
-    //     if (!$user) {
-    //         return $this->json(['error' => 'Utilisateur non trouvé.'], Response::HTTP_NOT_FOUND);
-    //     }
-
-    //     foreach ($jwtData['photoIds'] as $photoId) {
-    //         $photo = $entityManager->getRepository(Photo::class)->find($photoId);
-
-    //         if (!$photo) {
-    //             continue; // Si la photo n'existe pas, continuez avec la suivante
-    //         }
-
-    //         if ($photo->getUser()->getId() !== $user->getId()) {
-    //             continue; // Si la photo n'appartient pas à l'utilisateur, continuez avec la suivante
-    //         }
-
-    //         try {
-    //             $urlPath = $photo->getPath();
-    //             $relativePath = parse_url($urlPath, PHP_URL_PATH);
-
-    //             $projectDir = $this->getParameter('kernel.project_dir');
-    //             $filePath = $projectDir . '/public' . $relativePath;
-
-    //             if (file_exists($filePath)) {
-    //                 unlink($filePath);
-    //             }
-
-    //             if ($photo->getType() === Photo::TYPE_PROFILE) {
-    //                 $baseUrl = $requestStack->getCurrentRequest()->getSchemeAndHttpHost();
-    //                 $defaultProfilePicPath = $baseUrl . '/defaults/images/profileImage.jpg';
-    //                 $user->setProfilePicture($defaultProfilePicPath);
-    //                 $entityManager->persist($user);
-    //             }
-
-    //             $entityManager->remove($photo);
-    //         } catch (\Exception $e) {
-    //             continue; // Si une erreur se produit lors de la suppression, continuez avec la photo suivante
-    //         }
-    //     }
-
-    //     $entityManager->flush(); // Effectuez un seul flush après toutes les suppressions
-
-    //     return $this->json(['message' => 'Les photos ont été supprimées avec succès.']);
-    // }
 
 
 }
